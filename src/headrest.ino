@@ -11,16 +11,17 @@ curl https://api.spark.io/v1/devices/0123456789abcdef/led \
 
 int led1State = LOW;
 const int led1 = D7;
+
 int switch1LastState = HIGH;
 const int switch1 = D6;
 
-char publishString[64];
+String publishString;
 bool publishPending = false;
 
 void setup()
 {
-  Spark.function("led", ledControl);
-  Spark.function("notify",notifyPebble);
+  Particle.function("led", ledControl);
+  Particle.function("notify",notifyPebble);
 
   pinMode(switch1, INPUT_PULLUP);
 
@@ -36,21 +37,29 @@ void loop()
     switch1LastState = !switch1LastState;
     digitalWrite(led1,led1State);
 
-    sprintf(publishString,"{\"alert\": \"%d\", \"info\": \"New State: %s\"}",led1,(led1State)? "On" : "Off");
+    publishString = "{\"alert\":\"" + String(led1) + "\",\"info\":\"New State:";
+    if (led1State)
+      publishString += "On";
+    else
+      publishString += "Off";
+    publishString += "\"}";
     publishPending = true;
   }
   if (publishPending)
   {
-    Spark.publish("SSEvent",publishString);
+    char tempString[publishString.length()+1];
+    publishString.toCharArray(tempString, publishString.length()+1);
+    Particle.publish("SSEvent",tempString);
     publishPending = false;
+    publishString = "";
   }
 }
 
 int notifyPebble(String command)
 {
-  if (command == "1")
+  if (command != "")
   {
-    sprintf(publishString,"{\"alert\": \"%d\", \"info\": \"%s\"}",1,"HELLO WORLD!");
+    publishString = "{\"alert\":\"1\",\"info\":\"" + command + "\"}";
     publishPending = true;
   }
   return 1;
@@ -63,9 +72,13 @@ int ledControl(String command)
     led1State = !led1State;
     digitalWrite(led1,led1State);
 
-    sprintf(publishString,"{\"led\": \"%d\", \"state\": \"%s\"}",led1,(led1State)? "On" : "Off");
+    publishString = "{\"led\":\"" + String(led1) + "\",\"state\":\"";
+    if (led1State)
+      publishString += "On";
+    else
+      publishString += "Off";
+    publishString += "\"}";
     publishPending = true;
   }
-
   return led1State;
 }
